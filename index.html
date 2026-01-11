@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Perspective Visualiser</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/9.4.4/math.js"></script>
+</head>
+<body>
+  <canvas id="view" width="1200" height="800"></canvas>
+  <div id="widgets">
+    <label>Focal Length</label>
+    <br>
+    <input type="range" id="focal_length" name="focal length" min="1.75" max="10", step="0.01" />
+    <br>
+    <label>Scale</label>
+    <br>
+    <input type="range" id="scale" name="scale" min="0.01" max="1", step="0.01" />
+    <br>
+    <label>Grid Size</label>
+    <br>
+    <input type="range" id="grid_size" name="grid_size" min="50" max="400", step="10" />
+    <br>
+    <label>Rotation</label>
+    <br>
+    <input type="number" id="xrot" name="xrot" min="-.5" max="360" step="0.5" value="30" />
+    <input type="number" id="yrot" name="yrot" min="-.5" max="360" step="0.5" value="40" />
+    <br>
+    <select id="rotation_order" name="rotation_order">
+      <option value="0">Order: x->y</option>
+      <option value="1">Order: y->x</option>
+    </select>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>

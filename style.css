@@ -1,0 +1,28 @@
+html, body {
+  margin: 0;
+  height: 100%;
+}
+
+canvas {
+  position: absolute; /* Allow it to fill the entire window */
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  background-position: center;
+  background-attachment: fixed;
+  background-size: 100px 100px;
+  background-image:
+    linear-gradient(to right, rgb(209, 220, 236) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(209, 220, 236) 1px, rgb(245, 245, 242) 1px);
+}
+
+#widgets {
+  position: absolute;
+  padding: 10px;
+  margin: 10px;
+  border-radius: 10px;
+  z-index: 1;
+  background-color: rgba(140, 203, 215, 0.527);
+}
