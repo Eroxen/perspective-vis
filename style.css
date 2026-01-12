@@ -4,6 +4,7 @@ html, body {
 }
 
 canvas {
+  touch-action: none;
   position: absolute; /* Allow it to fill the entire window */
   top: 0;
   left: 0;

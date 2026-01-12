@@ -2,7 +2,8 @@ var state = {
   rotation: {
     x: document.getElementById("xrot").value / 180 * math.pi,
     y: document.getElementById("yrot").value / 180 * math.pi,
-    order: document.getElementById("rotation_order").value
+    order: document.getElementById("rotation_order").value,
+    snap: Number(document.getElementById("rot_snap").value) / 180 * math.pi
   },
   camera: {
     focal_length: document.getElementById("focal_length").value,
@@ -111,49 +112,85 @@ function render() {
 const canvas = document.getElementById("view");
 const ctx = canvas.getContext("2d");
 
-// Mouse event handlers for dragging
-let isDragging = false;
-canvas.addEventListener("mousedown", (event) => {
-  isDragging = true;
-  lastX = event.offsetX;
-  lastY = event.offsetY;
-});
+function wrap_angle(angle) {
+  if (angle < -math.pi) return angle + 2*math.pi;
+  if (angle > math.pi) return angle + 2*math.pi;
+  return angle;
+}
 
-canvas.addEventListener("mousemove", (event) => {
-  if (isDragging) {
-    const dx = event.offsetX - lastX;
-    const dy = event.offsetY - lastY;
-    
-    // Update rotation based on mouse movement
-    state.rotation.y -= dx * 0.01;  // Rotation around the Y-axis
-    state.rotation.x += dy * 0.01;  // Rotation around the X-axis
-
-    document.getElementById("xrot").value = mod(state.rotation.x / math.pi * 180, 360).toFixed(1);
-    document.getElementById("yrot").value = mod(state.rotation.y / math.pi * 180, 360).toFixed(1);
-    
-    lastX = event.offsetX;
-    lastY = event.offsetY;
-    
-    render();  // Redraw the cube with updated rotation
+function rotate_object(dx, dy) {
+  new_y = state.rotation.y - dx * 0.01;
+  new_x = state.rotation.x + dy * 0.01;
+  snap = state.rotation.snap
+  if (snap > 0) {
+    new_y = wrap_angle(snap * Math.round(new_y % (2*math.pi) / snap));
+    new_x = wrap_angle(snap * Math.round(new_x % (2*math.pi) / snap));
   }
+  if (new_y == state.rotation.y && new_x == state.rotation.x) return false;
+  state.rotation.x = new_x;
+  state.rotation.y = new_y;
+  document.getElementById("xrot").value = state.rotation.x / math.pi * 180;
+  document.getElementById("yrot").value = state.rotation.y / math.pi * 180;
+  wrap_angle_input(document.getElementById("xrot"));
+  wrap_angle_input(document.getElementById("yrot"));
+  render();
+  return true;
+}
+
+
+let activePointers = new Map();
+let pointer_down = false;
+let last_pinch_distance = null;
+
+canvas.addEventListener("pointerdown", (e) => {
+  activePointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+  canvas.setPointerCapture(e.pointerId);
+  pointer_down = true;
 });
 
-canvas.addEventListener("mouseup", () => {
-  isDragging = false;
+canvas.addEventListener("pointermove", (e) => {
+  if (!pointer_down) return;
+  if (!activePointers.has(e.pointerId)) return;
+
+  if (activePointers.size == 1) {
+    const prev = activePointers.get(e.pointerId);
+    // One finger → rotate
+    const success = rotate_object(e.clientX - prev.x, e.clientY - prev.y);
+    if (success) activePointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+  }
+
+  if (activePointers.size === 2) {
+    // Two fingers → pinch zoom
+    const [p1, p2] = [...activePointers.values()];
+    const dx = p1.x - p2.x;
+    const dy = p1.y - p2.y;
+    const distance = Math.hypot(dx, dy);
+
+    if (last_pinch_distance !== null) {
+      const delta = distance - last_pinch_distance;
+      zoom(delta * -0.005);
+    }
+
+    last_pinch_distance = distance;
+    activePointers.set(e.pointerId, {x:e.clientX, y:e.clientY});
+  }
+
 });
 
-canvas.addEventListener("mouseout", () => {
-  isDragging = false;
-});
+canvas.addEventListener("pointerup", forgetPointer);
+canvas.addEventListener("pointercancel", forgetPointer);
 
+function forgetPointer(e) {
+  activePointers.delete(e.pointerId);
+  canvas.releasePointerCapture(e.pointerId);
+  if (activePointers.size == 0) pointer_down = false;
+  last_pinch_distance = null;
+}
 
-canvas.addEventListener('wheel', (e) => {
-  // Prevent the default scroll behavior (if necessary)
-  e.preventDefault();
-
+function zoom(delta) {
   input = document.getElementById("scale");
   scale_current = state.camera.scale;
-  scale_new = +scale_current - e.deltaY * 0.01;
+  scale_new = +scale_current - delta;
   if (scale_new < input.min) scale_new = input.min;
   if (scale_new > input.max) scale_new = input.max;
   if (scale_new == scale_current) return;
@@ -162,11 +199,14 @@ canvas.addEventListener('wheel', (e) => {
   state.camera.scale = scale_new;
   render();
   update_grid();
+}
+
+canvas.addEventListener('wheel', (e) => {
+  // Prevent the default scroll behavior (if necessary)
+  e.preventDefault();
+
+  zoom(e.deltaY * 0.005);
 });
-
-
-
-
 
 
 document.getElementById("focal_length").addEventListener("input", change_foc_len, false);
@@ -181,6 +221,7 @@ function update_grid() {
   bgs = "" + size + "px " + size + "px";
   canvas.style.backgroundSize = bgs;
 }
+
 
 document.getElementById("scale").addEventListener("input", change_scale, false);
 function change_scale(e) {
@@ -243,20 +284,29 @@ function draw(scene) {
   // drawVanishingPoints(scene.vanishingPoints);
 }
 
+function wrap_angle_input(input) {
+  val = Number(input.value)
+  if (val < -180) {
+    input.value = (val + 360).toFixed(1);
+  }
+  else if (val > 180) {
+    input.value = (val - 360).toFixed(1);
+  }
+  else {
+    input.value = val.toFixed(1);
+  }
+}
+
 document.getElementById("xrot").addEventListener('input', (e) => {
   input = e.target;
-  if (input.value < 0 || input.value >= 360) {
-    input.value = mod(input.value, 360);
-  }
+  wrap_angle_input(input);
   state.rotation.x = input.value / 180 * math.pi;
   render();
 });
 
 document.getElementById("yrot").addEventListener('input', (e) => {
   input = e.target;
-  if (input.value < 0 || input.value >= 360) {
-    input.value = mod(input.value, 360);
-  }
+  wrap_angle_input(input);
   state.rotation.y = input.value / 180 * math.pi;
   render();
 });
@@ -265,6 +315,11 @@ document.getElementById("rotation_order").addEventListener('input', (e) => {
   input = e.target;
   state.rotation.order = input.value;
   render();
+});
+
+document.getElementById("rot_snap").addEventListener('input', (e) => {
+  input = e.target;
+  state.rotation.snap = Number(input.value) / 180 * math.pi;
 });
 
 update_grid();
